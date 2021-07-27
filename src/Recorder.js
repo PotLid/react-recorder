@@ -1,5 +1,7 @@
 /** Referring Google Web Fundamentals */
 /** https://developers.google.com/web/fundamentals/media/recording-video */
+/** https://developers.google.com/web/updates/2016/01/mediarecorder */
+/** https://developer.mozilla.org/en-US/docs/Web/API/MediaStream_Recording_API */
 
 import React, {useState, useEffect, useRef} from 'react';
 
@@ -34,8 +36,8 @@ const Recorder = (props) => {
             audio: true,
             video: {
                 // this cause over constrained error
-                // width: {ideal: 1920},
-                // height: {ideal: 1080},
+                width: {ideal: 1920},
+                height: {ideal: 1080},
                 facingMode: facingMode,
             }
         }
@@ -71,7 +73,7 @@ const Recorder = (props) => {
             return;
         }
 
-        const mediaRecorder = new MediaRecorder(currentStream, {mimeType: 'video/webm'});
+        const mediaRecorder = new MediaRecorder(currentStream, {mimeType: 'video/webm; codecs="opus, vp8"'});
 
         mediaRecorder.addEventListener('dataavailable', e => {
             if(e.data.size > 0) {
@@ -82,8 +84,14 @@ const Recorder = (props) => {
         });
 
         mediaRecorder.addEventListener('stop', () => {
-            const href = URL.createObjectURL(new Blob(recordedChunks));
+            const superBuffer = new Blob(recordedChunks);
+            const href = window.URL.createObjectURL(superBuffer);
             setHref(href);
+            if(vidTwo && vidTwo.current) {
+                vidTwo.current.src = href;
+            }
+
+            setMediaRecorder(null);
         })
 
         mediaRecorder.start();
@@ -106,6 +114,7 @@ const Recorder = (props) => {
         }
 
         console.log(vidTwo.current.readyState);
+        console.log(vidTwo.current.duration)
     }
 
     const playVid = () => {
@@ -124,11 +133,11 @@ const Recorder = (props) => {
                 height: '100%',
             }}
         >
-            {isFinished ? <video ref={vidTwo} src={href}/> : <video ref={vidOne} autoPlay style={{transform: 'scaleX(-1)'}}/>}
+            {isFinished ? <video ref={vidTwo} playsInline /> : <video ref={vidOne} autoPlay style={{transform: 'scaleX(-1)'}} playsInline muted/>}
             {isFinished ? null : isRecording ? <button onClick={clickStop}>Stop</button> : <button onClick={clickRecord}>Record</button>}
             {isFinished ? <a href={href} download={'test.webm'}>Download</a> : null}
             {isFinished ? <button onClick={getVidInfo}>current Status</button> : null}
-            {isFinished ? <button>play</button> : null}
+            {isFinished ? <button onClick={playVid}>play</button> : null}
         </div>
     )
 }
