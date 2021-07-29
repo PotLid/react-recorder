@@ -1,7 +1,8 @@
-/** Referring Google Web Fundamentals */
+/** Referring to Google Web Fundamentals */
 /** https://developers.google.com/web/fundamentals/media/recording-video */
 /** https://developers.google.com/web/updates/2016/01/mediarecorder */
 /** https://developer.mozilla.org/en-US/docs/Web/API/MediaStream_Recording_API */
+/** https://github.com/webrtc/samples/blob/gh-pages/src/content/getusermedia/record/js/main.js */
 
 import React, {useState, useEffect, useRef} from 'react';
 
@@ -68,48 +69,51 @@ const Recorder = (props) => {
         setStream(stream);
     }
 
-    const clickRecord = () => {
-        if(!currentStream) {
+    const updateChunks = (e) => {
+        console.log(e)
+        if (e.data.size > 0) {
+            const temp = recordedChunks;
+            temp.push(e.data);
+            setRecordedChunks(temp);
+        }
+    }
+
+    const mergeChunks = () => {
+        console.log(mediaRecorder)
+        const superBuffer = new Blob(recordedChunks);
+        const href = window.URL.createObjectURL(superBuffer);
+        setHref(href);
+        setMediaRecorder(null);
+    }
+
+    const clickRecord = async () => {
+        if (!currentStream) {
             return;
         }
 
         const mediaRecorder = new MediaRecorder(currentStream, {mimeType: 'video/webm; codecs="opus, vp8"'});
 
-        mediaRecorder.addEventListener('dataavailable', e => {
-            if(e.data.size > 0) {
-                const temp = recordedChunks;
-                temp.push(e.data);
-                setRecordedChunks(temp);
-            }
-        });
+        mediaRecorder.addEventListener('dataavailable', updateChunks, true);
+        mediaRecorder.addEventListener('stop', mergeChunks, true);
 
-        mediaRecorder.addEventListener('stop', () => {
-            const superBuffer = new Blob(recordedChunks);
-            const href = window.URL.createObjectURL(superBuffer);
-            setHref(href);
-            if(vidTwo && vidTwo.current) {
-                vidTwo.current.src = href;
-            }
-
-            setMediaRecorder(null);
-        })
-
-        mediaRecorder.start();
-
+        await mediaRecorder.start();
 
         setRecording(true);
         setMediaRecorder(mediaRecorder);
     }
 
-    const clickStop = () => {
-        mediaRecorder.stop();
+    const clickStop = async () => {
+        await mediaRecorder.stop();
+        mediaRecorder.removeEventListener('dataavailable', updateChunks, true);
+        mediaRecorder.removeEventListener('stop', mergeChunks, true);
 
         setRecording(false);
         setFinished(true);
     }
 
     const getVidInfo = () => {
-        if(!vidTwo || !vidTwo.current) {
+        if (!vidTwo || !vidTwo.current) {
+
             return;
         }
 
@@ -118,7 +122,7 @@ const Recorder = (props) => {
     }
 
     const playVid = () => {
-        if(!vidTwo || !vidTwo.current) {
+        if (!vidTwo || !vidTwo.current) {
             return;
         }
 
@@ -133,8 +137,11 @@ const Recorder = (props) => {
                 height: '100%',
             }}
         >
-            {isFinished ? <video ref={vidTwo} playsInline /> : <video ref={vidOne} autoPlay style={{transform: 'scaleX(-1)'}} playsInline muted/>}
-            {isFinished ? null : isRecording ? <button onClick={clickStop}>Stop</button> : <button onClick={clickRecord}>Record</button>}
+            {isFinished ?
+                <video ref={vidTwo} style={{transform: 'scaleX(-1)', width: '100%'}} playsInline src={href}/> :
+                <video ref={vidOne} autoPlay style={{transform: 'scaleX(-1)', width: '100%'}} playsInline muted/>}
+            {isFinished ? null : isRecording ? <button onClick={clickStop}>Stop</button> :
+                <button onClick={clickRecord}>Record</button>}
             {isFinished ? <a href={href} download={'test.webm'}>Download</a> : null}
             {isFinished ? <button onClick={getVidInfo}>current Status</button> : null}
             {isFinished ? <button onClick={playVid}>play</button> : null}
