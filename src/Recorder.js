@@ -3,13 +3,13 @@
  * https://www.webrtc-experiment.com/RecordRTC/simple-demos/video-recording.html
  * https://github.com/muaz-khan/RecordRTC/blob/master/simple-demos/video-recording.html */
 
-import React, {useEffect, useRef, useState} from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import RecordRTC from 'recordrtc';
 
 const CustomMediaRecorder = (props) => {
     const [recorder, setRecorder] = useState(null); // RecordRTC instance
     const [camera, setCamera] = useState(null); // MediaStream
-    const [permission, setPermission] = useState({status: false, error: null});
+    const [permission, setPermission] = useState({ status: false, error: null });
     const [isRecorded, setRecorded] = useState(false); // Flag
     const [recordURL, setRecordURL] = useState(null);
     const [isReocrding, setRecording] = useState(false);
@@ -56,7 +56,7 @@ const CustomMediaRecorder = (props) => {
         navigator.mediaDevices.getUserMedia(defaultConstraints)
             .then(handleSuccess)
             .catch(error => {
-                setPermission({status: false, error: error});
+                setPermission({ status: false, error: error });
             });
     }
 
@@ -70,7 +70,7 @@ const CustomMediaRecorder = (props) => {
         streamedVideoRef.current.srcObject = stream; // set video to play current MediaStream
 
         setCamera(stream);
-        setPermission({status: true, error: null});
+        setPermission({ status: true, error: null });
     }
 
     const startRecording = () => {
@@ -129,17 +129,8 @@ const CustomMediaRecorder = (props) => {
     }
 
     return (
-        <div
-            style={{
-                display: 'flex',
-                flexDirection: 'column',
-                position: 'relative',
-                zIndex: 10,
-                alignItems: 'center',
-                justifyContent: 'center',
-            }}
-        >
-            <video style={{width: '90%', maxWidth: '960px'}} autoPlay playsInline ref={streamedVideoRef}/>
+        <React.Fragment>
+            <video style={{width: '90%'}} autoPlay playsInline ref={streamedVideoRef} />
             {isRecorded ?
                 <React.Fragment>
                     <button onClick={play}>Play</button>
@@ -147,15 +138,10 @@ const CustomMediaRecorder = (props) => {
                     <a href={recordURL} download={'test.webm'}>Download</a>
                 </React.Fragment> :
                 <React.Fragment>
-                    {isReocrding ?
-                        <button onClick={stopRecording}>Stop</button> :
-                        <button onClick={startRecording}>Record</button>}
+                    {isReocrding ? <button onClick={stopRecording}>Stop</button> : <button onClick={startRecording}>Record</button>}
                 </React.Fragment>}
-            <button onClick={() => {
-                camera.stop()
-            }}>destory camera
-            </button>
-        </div>
+            <button onClick={() => {camera.stop()}}>destory camera</button>
+        </React.Fragment>
     )
 }
 
