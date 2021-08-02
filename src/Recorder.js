@@ -6,13 +6,14 @@
 import React, {useEffect, useRef, useState} from 'react';
 import RecordRTC from 'recordrtc';
 
-const CustomMediaRecorder = (props) => {
+const Recorder = (props) => {
     const [recorder, setRecorder] = useState(null); // RecordRTC instance
     const [camera, setCamera] = useState(null); // MediaStream
     const [permission, setPermission] = useState({status: false, error: null});
     const [isRecorded, setRecorded] = useState(false); // Flag
     const [recordURL, setRecordURL] = useState(null);
     const [isReocrding, setRecording] = useState(false);
+    const [facing, setFacing] = useState("user"); // "environment"
 
     const streamedVideoRef = useRef(null);
 
@@ -43,6 +44,7 @@ const CustomMediaRecorder = (props) => {
         const vidConstraints = {
             audio: true,
             video: {
+                facingMode: facing,
                 width: {ideal: 1920},
                 height: {ideal: 1080},
             }
@@ -144,8 +146,13 @@ const CustomMediaRecorder = (props) => {
                     <a href={recordURL} download={'test.webm'}>Download</a>
                 </React.Fragment> :
                 <React.Fragment>
-                    {isReocrding ? <button onClick={stopRecording}>Stop</button> :
-                        <button onClick={startRecording}>Record</button>}
+                    {isReocrding ?
+                        <button onClick={stopRecording}>Stop</button> :
+                        <React.Fragment>
+                            <button>Flip Camera</button>
+                            <button onClick={startRecording}>Record</button>
+                        </React.Fragment>
+                    }
                 </React.Fragment>}
             <button
                 onClick={() => {
@@ -158,4 +165,4 @@ const CustomMediaRecorder = (props) => {
     )
 }
 
-export default CustomMediaRecorder;
+export default Recorder;
