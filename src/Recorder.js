@@ -1,152 +1,148 @@
-/** Referring to Google Web Fundamentals */
-/** https://developers.google.com/web/fundamentals/media/recording-video */
-/** https://developers.google.com/web/updates/2016/01/mediarecorder */
-/** https://developer.mozilla.org/en-US/docs/Web/API/MediaStream_Recording_API */
-/** https://github.com/webrtc/samples/blob/gh-pages/src/content/getusermedia/record/js/main.js */
+/** Reference:
+ * https://www.webrtc-experiment.com/RecordRTC/simple-demos/
+ * https://www.webrtc-experiment.com/RecordRTC/simple-demos/video-recording.html
+ * https://github.com/muaz-khan/RecordRTC/blob/master/simple-demos/video-recording.html */
 
-import React, {useState, useEffect, useRef} from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import RecordRTC from 'recordrtc';
 
-const Recorder = (props) => {
+const CustomMediaRecorder = (props) => {
+    const [recorder, setRecorder] = useState(null); // RecordRTC instance
+    const [camera, setCamera] = useState(null); // MediaStream
+    const [permission, setPermission] = useState({ status: false, error: null });
+    const [isRecorded, setRecorded] = useState(false); // Flag
+    const [recordURL, setRecordURL] = useState(null);
+    const [isReocrding, setRecording] = useState(false);
 
-    const [cameras, setCameras] = useState(null);
-    const [camerasCount, setCamerasCount] = useState(0);
-    const [facingMode, setFacingMode] = useState("user"); // "environment" for rear camera
-    const [isRecording, setRecording] = useState(false);
-    const [isFinished, setFinished] = useState(false);
-    const [mediaRecorder, setMediaRecorder] = useState(null);
-    const [currentStream, setStream] = useState(null);
-    const [recordedChunks, setRecordedChunks] = useState([]);
-    const [href, setHref] = useState(null);
-
-    const vidOne = useRef(null);
-    const vidTwo = useRef(null);
+    const streamedVideoRef = useRef(null);
 
     useEffect(() => {
-        const asyncInit = async () => {
-            await initCamera()
-        };
+        const initWrap = async () => {
+            await askPermission();
+        }
 
-        asyncInit();
+        initWrap();
+
     }, []);
 
-    const initCamera = () => {
-        if (!navigator || !navigator.mediaDevices) {
-            return;
+    useEffect(() => {
+        return () => {
+            if (recordURL) {
+                URL.revokeObjectURL(recordURL);
+            }
         }
+    }, []);
+
+    // Lift up methods inside current component to its parent component
+    const liftUpCallbacks = () => {
+
+    }
+
+    // Ask for the camera access permission
+    const askPermission = async () => {
         const vidConstraints = {
             audio: true,
             video: {
-                // this cause over constrained error
                 width: {ideal: 1920},
                 height: {ideal: 1080},
-                facingMode: facingMode,
             }
         }
 
-        navigator.mediaDevices.getUserMedia(vidConstraints)
+        const defaultConstraints = {
+            audio: true,
+            video: true
+        }
+
+        navigator.mediaDevices.getUserMedia(defaultConstraints)
             .then(handleSuccess)
-            .catch(err => {
-                console.log(err.name + ": " + err.message);
+            .catch(error => {
+                setPermission({ status: false, error: error });
             });
-        if (!cameras) {
-            navigator.mediaDevices.enumerateDevices()
-                .then(devices => {
-                    const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                    setCameras(videoDevices);
-                    setCamerasCount(videoDevices.length);
-                })
-                .catch(err => {
-                    console.log(err.name + ": " + err.message);
-                });
-        }
     }
 
+    // Set the initial properties for the video element
     const handleSuccess = (stream) => {
-        if (!vidOne || !vidOne.current) {
+        if (!streamedVideoRef || !streamedVideoRef.current) {
             return;
         }
-        vidOne.current.srcObject = stream;
-        setStream(stream);
+        streamedVideoRef.current.muted = true; // it could be set in in-line style, yet neat to write in here
+        streamedVideoRef.current.volume = 0;
+        streamedVideoRef.current.srcObject = stream; // set video to play current MediaStream
+
+        setCamera(stream);
+        setPermission({ status: true, error: null });
     }
 
-    const updateChunks = (e) => {
-        console.log(e)
-        if (e.data.size > 0) {
-            const temp = recordedChunks;
-            temp.push(e.data);
-            setRecordedChunks(temp);
-        }
-    }
+    const startRecording = () => {
+        // Create new RecordRTC instance
+        const tempRecorder = RecordRTC(camera, {
+            type: 'video',
+        });
 
-    const mergeChunks = () => {
-        console.log(mediaRecorder)
-        const superBuffer = new Blob(recordedChunks);
-        const href = window.URL.createObjectURL(superBuffer);
-        setHref(href);
-        setMediaRecorder(null);
-    }
+        streamedVideoRef.current.muted = true; // it could be set in in-line style, yet neat to write in here
+        streamedVideoRef.current.volume = 0;
 
-    const clickRecord = async () => {
-        if (!currentStream) {
-            return;
-        }
+        tempRecorder.startRecording();
+        tempRecorder.camera = camera;
 
-        const mediaRecorder = new MediaRecorder(currentStream, {mimeType: 'video/webm; codecs="opus, vp8"'});
-
-        mediaRecorder.addEventListener('dataavailable', updateChunks, true);
-        mediaRecorder.addEventListener('stop', mergeChunks, true);
-
-        await mediaRecorder.start();
-
+        setRecorder(tempRecorder);
         setRecording(true);
-        setMediaRecorder(mediaRecorder);
     }
 
-    const clickStop = async () => {
-        await mediaRecorder.stop();
-        mediaRecorder.removeEventListener('dataavailable', updateChunks, true);
-        mediaRecorder.removeEventListener('stop', mergeChunks, true);
+    const stopRecording = () => {
+        recorder.stopRecording(stopRecordingCallback);
+    }
 
+    const stopRecordingCallback = () => {
+        streamedVideoRef.current.src = streamedVideoRef.current.srcObject = null;
+        streamedVideoRef.current.autoplay = false;
+        streamedVideoRef.current.muted = false;
+        streamedVideoRef.current.volume = 1;
+
+        const recordURL = URL.createObjectURL(recorder.getBlob()); // Deprecateed
+        streamedVideoRef.current.src = recordURL;
+
+        // recorder.camera.stop();
+
+        recorder.destroy();
+        setRecorder(null);
+        setRecordURL(recordURL);
+        setRecorded(true);
         setRecording(false);
-        setFinished(true);
     }
 
-    const getVidInfo = () => {
-        if (!vidTwo || !vidTwo.current) {
+    const retry = () => {
+        // Clear meemory
+        URL.revokeObjectURL(recordURL);
 
-            return;
-        }
+        streamedVideoRef.current.autoplay = true;
+        streamedVideoRef.current.muted = true; // it could be set in in-line style, yet neat to write in here
+        streamedVideoRef.current.volume = 0;
+        streamedVideoRef.current.srcObject = camera;
 
-        console.log(vidTwo.current.readyState);
-        console.log(vidTwo.current.duration)
+        setRecordURL(null);
+        setRecorded(false);
     }
 
-    const playVid = () => {
-        if (!vidTwo || !vidTwo.current) {
-            return;
-        }
-
-        vidTwo.current.play();
+    const play = () => {
+        streamedVideoRef.current.play();
     }
 
     return (
-        <div
-            className="recorder_rap"
-            style={{
-                width: '100%',
-                height: '100%',
-            }}
-        >
-            {isFinished ?
-                <video ref={vidTwo} style={{transform: 'scaleX(-1)', width: '100%'}} playsInline src={href}/> :
-                <video ref={vidOne} autoPlay style={{transform: 'scaleX(-1)', width: '100%'}} playsInline muted/>}
-            {isFinished ? null : isRecording ? <button onClick={clickStop}>Stop</button> :
-                <button onClick={clickRecord}>Record</button>}
-            {isFinished ? <a href={href} download={'test.webm'}>Download</a> : null}
-            {isFinished ? <button onClick={getVidInfo}>current Status</button> : null}
-            {isFinished ? <button onClick={playVid}>play</button> : null}
-        </div>
+        <React.Fragment>
+            <video style={{width: '90%'}} autoPlay playsInline ref={streamedVideoRef} />
+            {isRecorded ?
+                <React.Fragment>
+                    <button onClick={play}>Play</button>
+                    <button onClick={retry}>Retry</button>
+                    <a href={recordURL} download={'test.webm'}>Download</a>
+                </React.Fragment> :
+                <React.Fragment>
+                    {isReocrding ? <button onClick={stopRecording}>Stop</button> : <button onClick={startRecording}>Record</button>}
+                </React.Fragment>}
+            <button onClick={() => {camera.stop()}}>destory camera</button>
+        </React.Fragment>
     )
 }
 
-export default Recorder;
+export default CustomMediaRecorder;
