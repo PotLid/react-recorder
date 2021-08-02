@@ -1,3 +1,4 @@
+/** Reference: https://github.com/webrtc/samples/blob/gh-pages/src/content/getusermedia/record/js/main.js */
 import React, {createRef} from 'react';
 
 class MediaRecorder extends React.Component {

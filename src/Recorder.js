@@ -29,7 +29,7 @@ const Recorder = (props) => {
         asyncInit();
     }, []);
 
-    const initCamera = async () => {
+    const initCamera = () => {
         if (!navigator || !navigator.mediaDevices) {
             return;
         }
