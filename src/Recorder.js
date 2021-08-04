@@ -20,6 +20,10 @@ const Recorder = (props) => {
     const [photoURL, setPhotoURL] = useState(null);
     const [canFlipCamera, setCanFlip] = useState(false);
 
+
+    const [availCameras, setAvailCameras] = useState([]);
+    const [currentCamIdx, setCurrentIdx] = useState(0);
+
     const streamedVideoRef = useRef(null);
 
     useEffect(() => {
@@ -66,28 +70,41 @@ const Recorder = (props) => {
         if (videoInputs.length > 1) {
             setCanFlip(true);
         }
+        setAvailCameras(videoInputs);
     }
 
     // Ask for the camera access permission
-    const askPermission = async (facingMode) => {
-        const vidConstraints = {
-            audio: true,
-            video: {
-                facingMode: facing,
-                width: { ideal: 1920 },
-                height: { ideal: 1080 },
+    const askPermission = async (facingMode, camId = null) => {
+        if (camId) {
+            const forceConstraints = {
+                audio: true,
+                video: {
+                    deviceId: {
+                        exact: camId
+                    },
+                    zoom: 1.0,
+                }
             }
-        }
 
-        const defaultConstraints = {
-            audio: true,
-            video: true
+            navigator.mediaDevices.getUserMedia(forceConstraints)
+                .then(handleSuccess)
+                .catch(error => {
+                    console.log(error);
+                    setPermission({ status: false, error: error });
+                    setLoading(false);
+                });
+
+            return;
         }
 
         const testConstraints = {
             audio: true,
             video: {
-                facingMode: facingMode
+                facingMode: {
+                    exact: facingMode
+                },
+                zoom: 1.0,
+
             }
         }
 
@@ -98,6 +115,24 @@ const Recorder = (props) => {
                 setPermission({ status: false, error: error });
                 setLoading(false);
             });
+    }
+
+
+    // Set the initial properties for the video element
+    const handleSuccess = (stream) => {
+        if (!streamedVideoRef || !streamedVideoRef.current) {
+            return;
+        }
+        streamedVideoRef.current.muted = true; // it could be set in in-line style, yet neat to write in here
+        streamedVideoRef.current.volume = 0;
+        streamedVideoRef.current.srcObject = stream; // set video to play current MediaStream
+
+        const tempStack = [...streamStack, stream];
+
+        setCamera(stream);
+        setStack(tempStack);
+        setPermission({ status: true, error: null });
+        setLoading(false);
     }
 
     const stopVideoStream = () => {
@@ -114,6 +149,27 @@ const Recorder = (props) => {
         setStack([]);
     }
 
+    const iteratesAvailCameras = async () => {
+        setLoading(true);
+
+        setPermission({ status: false, error: null });
+
+        stopMediaStream();
+
+        console.log(availCameras);
+
+        if (availCameras.length === currentCamIdx) {
+            console.log(availCameras[0]);
+            await askPermission("user", availCameras[0].deviceId);
+            setCurrentIdx(0);
+            return;
+        }
+        console.log(availCameras[currentCamIdx])
+        await askPermission("user", availCameras[currentCamIdx].deviceId);
+        setCurrentIdx(currentCamIdx + 1);
+
+    }
+
     const toggleFacing = async () => {
         setLoading(true);
 
@@ -122,6 +178,8 @@ const Recorder = (props) => {
         // }
 
         setPermission({ status: false, error: null });
+
+        stopMediaStream();
 
         if (facing === "user") {
             await askPermission("environment");
@@ -151,23 +209,6 @@ const Recorder = (props) => {
         stopMediaStream();
     }
 
-    // Set the initial properties for the video element
-    const handleSuccess = (stream) => {
-        if (!streamedVideoRef || !streamedVideoRef.current) {
-            return;
-        }
-        streamedVideoRef.current.muted = true; // it could be set in in-line style, yet neat to write in here
-        streamedVideoRef.current.volume = 0;
-        streamedVideoRef.current.srcObject = stream; // set video to play current MediaStream
-
-        const tempStack = [...streamStack, stream];
-
-        setCamera(stream);
-        setStack(tempStack);
-        setPermission({ status: true, error: null });
-        setLoading(false);
-    }
-
     const takePhoto = () => {
         const canvas = document.createElement("canvas");
         const context = canvas.getContext("2d");
@@ -190,6 +231,13 @@ const Recorder = (props) => {
         // Create new RecordRTC instance
         const tempRecorder = RecordRTC(camera, {
             type: 'video',
+            MimeType: "video/webm;codecs=vp8",
+        });
+
+        // Testing raw recorder to use webm
+        const rawRecorder = new MediaRecorder(camera, {
+            type: 'video',
+            MimeType: "video/webm;codecs=vp8",
         });
 
         streamedVideoRef.current.muted = true; // it could be set in in-line style, yet neat to write in here
@@ -255,7 +303,7 @@ const Recorder = (props) => {
                     height: '100%',
                 }}
             >
-                <h3>Mode: {facing}</h3>
+                <h3>Mode: {facing} (force flipping doesn't change this)</h3>
                 <video style={{
                     width: '90%',
                     maxWidth: '960px',
@@ -276,6 +324,7 @@ const Recorder = (props) => {
                             <button onClick={stopRecording}>Stop</button> :
                             <React.Fragment>
                                 {canFlipCamera ? <button onClick={toggleFacing}>Flip Camera</button> : null}
+                                {canFlipCamera ? <button onClick={iteratesAvailCameras}>Force Flip Camera</button> : null}
                                 <button onClick={startRecording}>Record</button>
                                 <button onClick={destroyCamera}>destory camera</button>
                                 <button onClick={takePhoto}>Take Photo</button>
