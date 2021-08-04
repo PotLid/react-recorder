@@ -20,6 +20,8 @@ const Recorder = (props) => {
     const [photoURL, setPhotoURL] = useState(null);
     const [canFlipCamera, setCanFlip] = useState(false);
 
+    const [supportedConstratint, setSupportedConstraint] = useState(null);
+
 
     const [availCameras, setAvailCameras] = useState([]);
     const [currentCamIdx, setCurrentIdx] = useState(0);
@@ -65,12 +67,13 @@ const Recorder = (props) => {
         const devices = await navigator.mediaDevices.enumerateDevices();
         const videoInputs = devices.filter((device) => { return device.kind == "videoinput" });
 
-        console.log(devices);
+        let supported = navigator.mediaDevices.getSupportedConstraints();
 
         if (videoInputs.length > 1) {
             setCanFlip(true);
         }
         setAvailCameras(videoInputs);
+        setSupportedConstraint(supported);
     }
 
     // Ask for the camera access permission
@@ -100,9 +103,7 @@ const Recorder = (props) => {
         const testConstraints = {
             audio: true,
             video: {
-                facingMode: {
-                    exact: facingMode
-                },
+                facingMode: facingMode, // exact causes edge not working
                 zoom: 1.0,
 
             }
@@ -231,7 +232,7 @@ const Recorder = (props) => {
         // Create new RecordRTC instance
         const tempRecorder = RecordRTC(camera, {
             type: 'video',
-            MimeType: "video/webm;codecs=vp8",
+            // MimeType: "video/webm;codecs=vp8",
         });
 
         // Testing raw recorder to use webm
